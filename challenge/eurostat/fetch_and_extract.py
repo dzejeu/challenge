@@ -3,6 +3,7 @@ from pyunpack import Archive
 from tempfile import NamedTemporaryFile
 from urllib.parse import urlencode
 from challenge.eurostat import InvalidEurostatApiResponse
+from retry import retry
 
 
 class EurostatDataFetcher(object):
@@ -28,6 +29,7 @@ class EurostatDataFetcher(object):
         params = urlencode(query={'file': date.strftime(self.filename_template)})
         return '{base_url}?{query}'.format(base_url=self.base_url, query=params)
 
+    @retry(InvalidEurostatApiResponse, tries=4, delay=60)
     def fetch_and_extract_to_file(self, date):
         """
         Fetches archive file from Eurostat BulkDownload based on date included in file name.
