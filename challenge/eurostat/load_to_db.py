@@ -36,6 +36,9 @@ class SqlLiteClient(AbstractContextManager):
         """
         dataframe.to_sql(table_name, con=self.db_conn, if_exists='append', index=False)
 
+    def query(self, query):
+        return pd.read_sql(query, con=self.db_conn)
+
     def create_index(self, table, index_name, columns):
         if not columns:
             raise ValueError('Need at least one column to create index')

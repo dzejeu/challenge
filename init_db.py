@@ -4,6 +4,7 @@ from multiprocessing import Pool, cpu_count
 from dateutil.parser import parse as parse_date_str
 from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
+from datetime import datetime
 
 from challenge.eurostat.fetch_and_extract import EurostatDataFetcher, InvalidEurostatApiResponse
 from challenge.eurostat.load_to_db import SqlLiteClient
@@ -18,6 +19,18 @@ def _try_to_fetch(client, date):
         client.fetch_and_extract_to_file(date)
     except InvalidEurostatApiResponse:
         log.warning('Failed to fetch data for %s', date)
+
+
+def _aggregate_df_chunk(chunk):
+    categorical_columns = ['DECLARANT_ISO', 'TRADE_TYPE', 'PERIOD']
+    agg_chunk = (
+        chunk
+        .set_index(categorical_columns)
+        .groupby(categorical_columns)
+        .apply(sum)
+        .reset_index()
+    )
+    return agg_chunk
 
 
 def init_sqlite_db(extract_dir,
@@ -54,8 +67,10 @@ def init_sqlite_db(extract_dir,
                 chunks = sql.dataframe_from_csv(file, True)
                 for chunk in chunks:
                     chunk['VALUE_IN_EUROS'] = chunk['VALUE_IN_EUROS'].apply(float)
+                    chunk['PERIOD'] = chunk['PERIOD'].apply(lambda x: datetime.strptime(str(x), '%Y%m'))
                     chunk = chunk[['PERIOD', 'DECLARANT_ISO', 'TRADE_TYPE', 'VALUE_IN_EUROS']]
-                    sql.load_to_db(chunk, table_name)
+                    agg_chunk = _aggregate_df_chunk(chunk)
+                    sql.load_to_db(agg_chunk, table_name)
         sql.create_index(table_name, 'idx', ['DECLARANT_ISO', 'TRADE_TYPE', 'VALUE_IN_EUROS', 'PERIOD'])
 
     if clear_dir:
