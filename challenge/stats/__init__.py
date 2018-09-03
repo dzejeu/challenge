@@ -1,6 +1,7 @@
 from challenge.eurostat.load_to_db import SqlLiteClient
 from challenge.config import DB_PATH, TABLE_NAME
 from dateutil.relativedelta import relativedelta
+from dateutil.parser import parse as parse_datestring
 
 
 def _extend_with_yoy(df):
@@ -18,9 +19,16 @@ def _extend_with_moving_avg(df):
     return df
 
 
-def fetch_trades(declarant, trade_type, start_date, end_date):
-    start_date -= relativedelta(years=1)
-    (start, end) = map(lambda x: x.replace(day=1).strftime('%Y-%m-%d'), [start_date, end_date])
+def declarants():
+    query = "SELECT DISTINCT DECLARANT_ISO FROM {table_id};"
+    with SqlLiteClient(DB_PATH) as sql:
+        df = sql.query(query.format(table_id=TABLE_NAME))
+    return list(df['DECLARANT_ISO'])
+
+
+def trades(declarant, trade_type, start_date, end_date):
+    extended_start_date = start_date - relativedelta(years=1)
+    (start, end) = map(lambda x: x.replace(day=1).strftime('%Y-%m-%d'), [extended_start_date, end_date])
     query = """
         SELECT 
             SUM(VALUE_IN_EUROS) AS Trades,
@@ -32,7 +40,6 @@ def fetch_trades(declarant, trade_type, start_date, end_date):
         GROUP BY Month
         ORDER BY Month ASC;
     """
-
     with SqlLiteClient(DB_PATH) as sql:
         df = sql.query(query.format(table_id=TABLE_NAME,
                                     declarant=declarant,
@@ -40,12 +47,8 @@ def fetch_trades(declarant, trade_type, start_date, end_date):
                                     start_date=start,
                                     end_date=end))
 
+    df['Month'] = df['Month'].apply(parse_datestring)
     for fn in [_extend_with_mom, _extend_with_yoy, _extend_with_moving_avg]:
         df = fn(df)
-    return df
+    return df[(df['Month'] >= start_date) & (df['Month'] <= end_date)]
 
-
-if __name__ == '__main__':
-    from datetime import datetime as dt
-    df = fetch_trades(declarant='FR', trade_type='I', start_date=dt(2016, 1, 1), end_date=dt(2018, 1, 1))
-    df.to_csv('/home/mswat/czele.csv', index=False)

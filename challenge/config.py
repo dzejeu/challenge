@@ -1,2 +1,2 @@
-DB_PATH = '/home/mswat/aurostat.db'
+DB_PATH = 'eurostat.db'
 TABLE_NAME = 'trades'
