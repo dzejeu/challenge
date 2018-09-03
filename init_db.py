@@ -7,7 +7,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 from challenge.eurostat.fetch_and_extract import EurostatDataFetcher, InvalidEurostatApiResponse
-from challenge.eurostat.load_to_db import SqlLiteClient
+from challenge.db.db_client import SqlLiteClient
 from argparse import ArgumentParser
 import logging
 
@@ -62,20 +62,21 @@ def init_sqlite_db(extract_dir,
         hook.get()
 
     extracted_files = [os.path.join(extract_dir, file) for file in os.listdir(extract_dir)]
-    with SqlLiteClient(db_name) as sql:
-        for file in tqdm(extracted_files):
-                chunks = sql.dataframe_from_csv(file, True)
-                for chunk in chunks:
-                    chunk['VALUE_IN_EUROS'] = chunk['VALUE_IN_EUROS'].apply(float)
-                    chunk['PERIOD'] = chunk['PERIOD'].apply(lambda x: datetime.strptime(str(x), '%Y%m'))
-                    chunk = chunk[['PERIOD', 'DECLARANT_ISO', 'TRADE_TYPE', 'VALUE_IN_EUROS']]
-                    agg_chunk = _aggregate_df_chunk(chunk)
-                    sql.load_to_db(agg_chunk, table_name)
-        sql.create_index(table_name, 'idx', ['DECLARANT_ISO', 'TRADE_TYPE', 'VALUE_IN_EUROS', 'PERIOD'])
-
-    if clear_dir:
-        for file in extracted_files:
-            os.remove(file)
+    try:
+        with SqlLiteClient(db_name) as sql:
+            for file in tqdm(extracted_files):
+                    chunks = sql.dataframe_from_csv(file, True)
+                    for chunk in chunks:
+                        chunk['VALUE_IN_EUROS'] = chunk['VALUE_IN_EUROS'].apply(float)
+                        chunk['PERIOD'] = chunk['PERIOD'].apply(lambda x: datetime.strptime(str(x), '%Y%m'))
+                        chunk = chunk[['PERIOD', 'DECLARANT_ISO', 'TRADE_TYPE', 'VALUE_IN_EUROS']]
+                        agg_chunk = _aggregate_df_chunk(chunk)
+                        sql.load_to_db(agg_chunk, table_name)
+            sql.create_index(table_name, 'idx', ['DECLARANT_ISO', 'TRADE_TYPE', 'VALUE_IN_EUROS', 'PERIOD'])
+    finally:
+        if clear_dir:
+            for file in extracted_files:
+                os.remove(file)
 
 
 if __name__ == '__main__':

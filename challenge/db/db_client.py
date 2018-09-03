@@ -40,6 +40,10 @@ class SqlLiteClient(AbstractContextManager):
         return pd.read_sql(query, con=self.db_conn)
 
     def create_index(self, table, index_name, columns):
+        """
+        Creates index on specified table which results in improved speed when querying for columns included in
+        index at a cost of database size extension.
+        """
         if not columns:
             raise ValueError('Need at least one column to create index')
 

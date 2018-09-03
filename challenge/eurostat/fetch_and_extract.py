@@ -22,10 +22,11 @@ class EurostatDataFetcher(object):
         self.extracted_files_dir = extracted_files_dir
 
     def _validate_api_response(self, response):
+        print(response.status_code)
         if response.status_code != 200:
             raise InvalidEurostatApiResponse(status_code=response.status_code)
 
-    def _build_url(self, date):
+    def build_url(self, date):
         params = urlencode(query={'file': date.strftime(self.filename_template)})
         return '{base_url}?{query}'.format(base_url=self.base_url, query=params)
 
@@ -36,7 +37,7 @@ class EurostatDataFetcher(object):
         Extracts file content into specified directory.
         :type date: datetime.datetime
         """
-        fetch_url = self._build_url(date)
+        fetch_url = self.build_url(date)
 
         response = requests.get(fetch_url, stream=True)
         self._validate_api_response(response)

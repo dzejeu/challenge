@@ -1,4 +1,4 @@
-from challenge.eurostat.load_to_db import SqlLiteClient
+from challenge.db.db_client import SqlLiteClient
 from challenge.config import DB_PATH, TABLE_NAME
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse as parse_datestring
@@ -27,6 +27,14 @@ def declarants():
 
 
 def trades(declarant, trade_type, start_date, end_date):
+    """
+    Fetches sum of all trades for specified declarant and trade_type
+    :param start_date: "older" date
+    :type start_date: datetime.datetime
+    :param end_date: "more recent" date
+    :type end_date: datetime.datetime
+    :rtype: pandas.DataFrame
+    """
     extended_start_date = start_date - relativedelta(years=1)
     (start, end) = map(lambda x: x.replace(day=1).strftime('%Y-%m-%d'), [extended_start_date, end_date])
     query = """
