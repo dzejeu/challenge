@@ -22,7 +22,6 @@ class EurostatDataFetcher(object):
         self.extracted_files_dir = extracted_files_dir
 
     def _validate_api_response(self, response):
-        print(response.status_code)
         if response.status_code != 200:
             raise InvalidEurostatApiResponse(status_code=response.status_code)
 
